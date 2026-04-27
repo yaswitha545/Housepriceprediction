@@ -2,9 +2,41 @@ import streamlit as st
 import pandas as pd
 from sklearn.linear_model import LinearRegression
 
-st.set_page_config(page_title="House Price Prediction", layout="centered")
+# Page config
+st.set_page_config(page_title="House Price Predictor", layout="wide")
 
-st.title("🏠 House Price Prediction using ML")
+# Custom CSS
+st.markdown("""
+    <style>
+    .main {
+        background: linear-gradient(to right, #eef2f3, #dfe9f3);
+    }
+    .title {
+        font-size:40px;
+        font-weight:700;
+        color:#2c3e50;
+    }
+    .card {
+        background-color:white;
+        padding:20px;
+        border-radius:15px;
+        box-shadow:0px 4px 12px rgba(0,0,0,0.1);
+    }
+    .price-box {
+        background: linear-gradient(to right, #11998e, #38ef7d);
+        padding:25px;
+        border-radius:15px;
+        color:white;
+        font-size:28px;
+        text-align:center;
+        font-weight:bold;
+    }
+    </style>
+""", unsafe_allow_html=True)
+
+# Title
+st.markdown('<div class="title">🏡 House Price Prediction App</div>', unsafe_allow_html=True)
+st.write("Enter property details to estimate the market price")
 
 # Load dataset
 @st.cache_data
@@ -14,10 +46,9 @@ def load_data():
 
 data = load_data()
 
-# Handle categorical column (city)
+# Encode city
 data = pd.get_dummies(data, columns=["city"], drop_first=True)
 
-# Split features & target
 X = data.drop("price", axis=1)
 y = data["price"]
 
@@ -25,24 +56,25 @@ y = data["price"]
 model = LinearRegression()
 model.fit(X, y)
 
-st.subheader("Enter House Details")
+# Sidebar input (clean UI)
+st.sidebar.header("🏠 Enter Property Details")
 
-# User inputs
-bedrooms = st.number_input("Bedrooms", min_value=0)
-bathrooms = st.number_input("Bathrooms", min_value=0.0)
-sqft_living = st.number_input("Sqft Living", min_value=0)
-sqft_lot = st.number_input("Sqft Lot", min_value=0)
-floors = st.number_input("Floors", min_value=0.0)
-waterfront = st.selectbox("Waterfront", [0, 1])
-view = st.slider("View", 0, 4)
-condition = st.slider("Condition", 1, 5)
-sqft_above = st.number_input("Sqft Above", min_value=0)
-sqft_basement = st.number_input("Sqft Basement", min_value=0)
-yr_built = st.number_input("Year Built", min_value=1900, max_value=2025)
-yr_renovated = st.number_input("Year Renovated", min_value=0)
-city = st.selectbox("City", data.filter(like="city_").columns)
+bedrooms = st.sidebar.number_input("Bedrooms", 0, 10, 3)
+bathrooms = st.sidebar.number_input("Bathrooms", 0.0, 10.0, 2.0)
+sqft_living = st.sidebar.number_input("Living Area (sqft)", 500, 10000, 1500)
+sqft_lot = st.sidebar.number_input("Lot Size (sqft)", 500, 20000, 5000)
+floors = st.sidebar.number_input("Floors", 1.0, 5.0, 1.0)
+waterfront = st.sidebar.selectbox("Waterfront", [0, 1])
+view = st.sidebar.slider("View Rating", 0, 4, 1)
+condition = st.sidebar.slider("Condition", 1, 5, 3)
+sqft_above = st.sidebar.number_input("Sqft Above", 500, 10000, 1200)
+sqft_basement = st.sidebar.number_input("Sqft Basement", 0, 3000, 0)
+yr_built = st.sidebar.number_input("Year Built", 1900, 2025, 2000)
+yr_renovated = st.sidebar.number_input("Year Renovated", 0, 2025, 0)
 
-# Create input dataframe
+city = st.sidebar.selectbox("City", data.filter(like="city_").columns)
+
+# Prepare input
 input_dict = {
     "bedrooms": bedrooms,
     "bathrooms": bathrooms,
@@ -60,15 +92,27 @@ input_dict = {
 
 input_df = pd.DataFrame([input_dict])
 
-# Add city columns (one-hot)
+# Handle city encoding
 for col in X.columns:
     if col.startswith("city_"):
         input_df[col] = 1 if col == city else 0
 
-# Match column order
 input_df = input_df[X.columns]
 
-# Prediction
-if st.button("Predict Price"):
-    prediction = model.predict(input_df)
-    st.success(f"💰 Estimated Price: ₹ {round(prediction[0], 2)}")
+# Main layout
+col1, col2 = st.columns([2, 1])
+
+with col1:
+    st.markdown('<div class="card">', unsafe_allow_html=True)
+    st.subheader("📊 Property Overview")
+    st.write(input_df)
+    st.markdown('</div>', unsafe_allow_html=True)
+
+with col2:
+    if st.button("🔍 Predict Price"):
+        prediction = model.predict(input_df)[0]
+
+        st.markdown(
+            f'<div class="price-box">💰 Estimated Price <br> ₹ {round(prediction, 2)}</div>',
+            unsafe_allow_html=True
+        )
