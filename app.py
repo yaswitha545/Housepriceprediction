@@ -2,61 +2,64 @@ import streamlit as st
 import pandas as pd
 from sklearn.linear_model import LinearRegression
 
-# Page config
+# ---------------- PAGE CONFIG ----------------
 st.set_page_config(page_title="House Price Predictor", layout="wide")
 
-# Custom CSS
+# ---------------- CUSTOM UI ----------------
 st.markdown("""
-    <style>
-    .main {
-        background: linear-gradient(to right, #eef2f3, #dfe9f3);
-    }
-    .title {
-        font-size:40px;
-        font-weight:700;
-        color:#2c3e50;
-    }
-    .card {
-        background-color:white;
-        padding:20px;
-        border-radius:15px;
-        box-shadow:0px 4px 12px rgba(0,0,0,0.1);
-    }
-    .price-box {
-        background: linear-gradient(to right, #11998e, #38ef7d);
-        padding:25px;
-        border-radius:15px;
-        color:white;
-        font-size:28px;
-        text-align:center;
-        font-weight:bold;
-    }
-    </style>
+<style>
+.main {
+    background: linear-gradient(to right, #eef2f3, #dfe9f3);
+}
+.title {
+    font-size:40px;
+    font-weight:700;
+    color:#2c3e50;
+}
+.card {
+    background-color:white;
+    padding:20px;
+    border-radius:15px;
+    box-shadow:0px 4px 12px rgba(0,0,0,0.1);
+}
+.price-box {
+    background: linear-gradient(to right, #11998e, #38ef7d);
+    padding:25px;
+    border-radius:15px;
+    color:white;
+    font-size:28px;
+    text-align:center;
+    font-weight:bold;
+}
+</style>
 """, unsafe_allow_html=True)
 
-# Title
+# ---------------- TITLE ----------------
 st.markdown('<div class="title">🏡 House Price Prediction App</div>', unsafe_allow_html=True)
 st.write("Enter property details to estimate the market price")
 
-# Load dataset
+# ---------------- LOAD DATA ----------------
 @st.cache_data
 def load_data():
-    data = pd.read_csv("clean_dataset.csv")
-    return data
+    return pd.read_csv("clean_dataset.csv")
 
 data = load_data()
 
-# Encode city
-data = pd.get_dummies(data, columns=["city"], drop_first=True)
+# Keep original city values for UI
+city_list = data["city"].unique()
 
-X = data.drop("price", axis=1)
-y = data["price"]
+# Encode dataset
+data_encoded = pd.get_dummies(data, columns=["city"], drop_first=True)
+
+# Features & target
+X = data_encoded.drop("price", axis=1)
+y = data_encoded["price"]
 
 # Train model
 model = LinearRegression()
 model.fit(X, y)
 
-# Sidebar input (clean UI)
+# ---------------- SIDEBAR INPUT ----------------
 st.sidebar.header("🏠 Enter Property Details")
 
 bedrooms = st.sidebar.number_input("Bedrooms", 0, 10, 3)
@@ -72,9 +75,9 @@ sqft_basement = st.sidebar.number_input("Sqft Basement", 0, 3000, 0)
 yr_built = st.sidebar.number_input("Year Built", 1900, 2025, 2000)
 yr_renovated = st.sidebar.number_input("Year Renovated", 0, 2025, 0)
 
-city = st.sidebar.selectbox("City", data.filter(like="city_").columns)
+city = st.sidebar.selectbox("City", city_list)
 
-# Prepare input
+# ---------------- CREATE INPUT DATA ----------------
 input_dict = {
     "bedrooms": bedrooms,
     "bathrooms": bathrooms,
@@ -92,14 +95,15 @@ input_dict = {
 
 input_df = pd.DataFrame([input_dict])
 
-# Handle city encoding
+# Add city columns (one-hot encoding)
 for col in X.columns:
     if col.startswith("city_"):
-        input_df[col] = 1 if col == city else 0
+        input_df[col] = 1 if col == f"city_{city}" else 0
 
-input_df = input_df[X.columns]
+# 🔥 FIX: Align columns safely (prevents KeyError)
+input_df = input_df.reindex(columns=X.columns, fill_value=0)
 
-# Main layout
+# ---------------- MAIN UI ----------------
 col1, col2 = st.columns([2, 1])
 
 with col1:
